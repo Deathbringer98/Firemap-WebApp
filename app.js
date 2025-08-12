@@ -184,18 +184,44 @@ function updateDataStatus(status, message) {
     lastUpdate.textContent = `Last update: ${new Date().toLocaleTimeString()} (${dataSourceUsed})`;
 }
 
-// Visitor counter
+// Visitor counter - improved accuracy
 function updateVisitorCount() {
-    let visitorCount = localStorage.getItem('firemap_visitors');
+    // Check if this is a new session
+    const sessionVisited = sessionStorage.getItem('firemap_session_visited');
     
-    if (!visitorCount) {
-        visitorCount = 1;
+    if (!sessionVisited) {
+        // New session - increment counter
+        let visitorCount = localStorage.getItem('firemap_visitors');
+        
+        if (!visitorCount) {
+            visitorCount = 1;
+        } else {
+            visitorCount = parseInt(visitorCount) + 1;
+        }
+        
+        localStorage.setItem('firemap_visitors', visitorCount);
+        sessionStorage.setItem('firemap_session_visited', 'true');
+        
+        // Add timestamp for better tracking
+        const lastVisit = new Date().toISOString();
+        localStorage.setItem('firemap_last_visit', lastVisit);
+        
+        document.getElementById('visitorCount').textContent = visitorCount;
     } else {
-        visitorCount = parseInt(visitorCount) + 1;
+        // Existing session - just display current count
+        let visitorCount = localStorage.getItem('firemap_visitors') || 1;
+        document.getElementById('visitorCount').textContent = visitorCount;
     }
     
-    localStorage.setItem('firemap_visitors', visitorCount);
-    document.getElementById('visitorCount').textContent = visitorCount;
+    // Display browser and session info in console for debugging
+    console.log('🔢 Visitor tracking:', {
+        browser: navigator.userAgent.includes('Chrome') ? 'Chrome/Chromium' : 
+                navigator.userAgent.includes('Firefox') ? 'Firefox' : 
+                navigator.userAgent.includes('Safari') ? 'Safari' : 'Other',
+        domain: window.location.hostname,
+        sessionNew: !sessionVisited,
+        currentCount: localStorage.getItem('firemap_visitors')
+    });
 }
 
 // Initialize everything when page loads

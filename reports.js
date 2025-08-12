@@ -88,6 +88,30 @@ const _0xb8g3 = function(reportId) {
 // Expose function with obfuscated name
 window[String.fromCharCode(95, 97, 100, 109, 105, 110, 68, 101, 108, 101, 116, 101)] = _0xb8g3;
 
+// Reset visitor counter (admin only)
+const _0xv1s1t = function() {
+    const _0xe9f0 = localStorage.getItem('firemap_' + _0x4a8b[0] + '_mode') === _0x4a8b[1];
+    if (!_0xe9f0) {
+        console.log('❌ Insufficient privileges for this operation');
+        return false;
+    }
+    
+    if (confirm('🔧 Reset visitor counter to 0?')) {
+        localStorage.removeItem('firemap_visitors');
+        localStorage.removeItem('firemap_last_visit');
+        sessionStorage.removeItem('firemap_session_visited');
+        
+        // Update display
+        document.getElementById('visitorCount').textContent = '0';
+        console.log('🔧 Visitor counter reset successful');
+        alert('Visitor counter reset to 0');
+        return true;
+    }
+    return false;
+};
+
+window[String.fromCharCode(95, 114, 101, 115, 101, 116, 86, 105, 115, 105, 116, 111, 114, 115)] = _0xv1s1t;
+
 // Show status
 function updateAdminIndicator() {
     let indicator = document.getElementById('adminIndicator');
