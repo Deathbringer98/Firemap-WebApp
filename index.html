@@ -26,6 +26,20 @@
         #map {
             flex: 1;
         }
+        
+        .visitor-counter {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
@@ -35,6 +49,11 @@
     <div id="map"></div>
 </div>
 <div class="sidebar"></div>
+
+<!-- Visitor Counter -->
+<div class="visitor-counter" id="visitorCounter">
+    Visitors: <span id="visitorCount">0</span>
+</div>
 
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -110,6 +129,29 @@
 
     // Auto-refresh every 15 minutes (900000 ms)
     setInterval(loadFireData, 900000);
+
+    // Visitor Counter
+    function updateVisitorCount() {
+        // Get current visitor count from localStorage
+        let visitorCount = localStorage.getItem('firemap_visitors');
+        
+        if (!visitorCount) {
+            // First time visitor
+            visitorCount = 1;
+        } else {
+            // Increment visitor count
+            visitorCount = parseInt(visitorCount) + 1;
+        }
+        
+        // Store updated count
+        localStorage.setItem('firemap_visitors', visitorCount);
+        
+        // Display the count
+        document.getElementById('visitorCount').textContent = visitorCount;
+    }
+
+    // Update visitor count when page loads
+    updateVisitorCount();
 </script>
 
 </body>
