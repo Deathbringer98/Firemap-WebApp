@@ -2,67 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Real-Time Wildfire Map</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Wildfire Map</title>
+    
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-    <style>
-        body {
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            background-color: black;
-        }
-        .sidebar {
-            width: 60px;
-            background-color: black;
-        }
-        .map-container {
-            flex: 1;
-            background-color: white;
-            display: flex;
-            flex-direction: column;
-        }
-        #map {
-            flex: 1;
-        }
-        
-        .visitor-counter {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            z-index: 1000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        
-        .data-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            z-index: 1000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            max-width: 250px;
-        }
-        
-        .status-fresh { border-left: 4px solid #00ff00; }
-        .status-stale { border-left: 4px solid #ffaa00; }
-        .status-error { border-left: 4px solid #ff0000; }
-    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<!-- Main Layout -->
 <div class="sidebar"></div>
 <div class="map-container">
     <div id="map"></div>
@@ -74,226 +25,85 @@
     Visitors: <span id="visitorCount">0</span>
 </div>
 
+<!-- User Report Button -->
+<button class="report-button" onclick="openReportForm()">
+    🚨 Report Fire
+</button>
+
+<!-- Admin Toggle Button (hidden by default) -->
+<button id="adminToggleBtn" onclick="toggleAdminMode()" style="
+    position: fixed; bottom: 20px; right: 20px; background: #333; color: white; 
+    border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; 
+    font-size: 12px; z-index: 1500; display: none;
+">🔧 Admin</button>
+
 <!-- Data Status Indicator -->
 <div class="data-status status-fresh" id="dataStatus">
     <div id="statusText">🛰️ Checking data...</div>
     <div style="font-size: 10px; margin-top: 2px;" id="lastUpdate">Last update: Checking...</div>
 </div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Leaflet Heat Plugin for heat maps -->
-<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-<script>
-    // Initialize Leaflet map
-    const map = L.map('map').setView([20, 0], 2);
+<!-- Report Form Overlay -->
+<div class="form-overlay" id="formOverlay" onclick="if(!window.isReportingMode) closeReportForm()"></div>
 
-    // Add OpenStreetMap tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Try multiple approaches to load fire data
-    const CORS_PROXY_1 = 'https://corsproxy.io/?';
-    const CORS_PROXY_2 = 'https://api.allorigins.win/raw?url=';
-    const FIRMS_URL = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/viirs/geojson/Global_VIIRS_C2_24h.geojson';
+<!-- Report Form -->
+<div class="report-form" id="reportForm">
+    <h3 style="margin-top: 0; color: #6a0dad;">🚨 Report Fire Incident</h3>
     
-    // Multiple backup data sources
-    const ALTERNATIVE_URL_1 = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/MODIS_Thermal_v1/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson';
-    const ALTERNATIVE_URL_2 = 'https://services1.arcgis.com/4yjifSiIG17X0gW4/arcgis/rest/services/Fires/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson';
+    <div class="form-group">
+        <label for="reportType">Report Type:</label>
+        <select id="reportType">
+            <option value="fire">Active Fire</option>
+            <option value="smoke">Smoke Sighting</option>
+            <option value="evacuation">Evacuation Zone</option>
+            <option value="road_closure">Road Closure</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="severity">Severity Level:</label>
+        <select id="severity">
+            <option value="low">Low - Small/Contained</option>
+            <option value="moderate">Moderate - Growing</option>
+            <option value="high">High - Large/Spreading</option>
+            <option value="extreme">Extreme - Immediate Danger</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="description">Description:</label>
+        <textarea id="description" rows="3" placeholder="Describe what you see (size, direction, structures at risk, etc.)"></textarea>
+    </div>
+    
+    <div class="form-group">
+        <label for="location">Location:</label>
+        <div style="display: flex; align-items: center;">
+            <input type="text" id="location" placeholder="Click 'Select on Map' to choose location" readonly style="flex: 1;">
+            <button id="locationSelectBtn" type="button" onclick="activateLocationSelection(this)" style="margin-left: 10px; padding: 8px 12px; background: #6a0dad; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                📍 Select on Map
+            </button>
+        </div>
+        <small style="color: #666; font-size: 11px;">Click the button above, then click anywhere on the map to set the report location</small>
+    </div>
+    
+    <div class="form-group">
+        <label for="contactInfo">Contact Info (optional):</label>
+        <input type="text" id="contactInfo" placeholder="Phone/Email for follow-up">
+    </div>
+    
+    <div class="form-buttons">
+        <button class="btn-cancel" onclick="closeReportForm()">Cancel</button>
+        <button class="btn-submit" onclick="submitReport()">Submit Report</button>
+    </div>
+</div>
 
-    let lastDataTime = null;
-    let dataSourceUsed = 'Unknown';
+<!-- JavaScript Libraries -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
-    let fireLayer;
-    let heatLayer;
-
-    async function loadFireData() {
-        try {
-            console.log('Fetching fire data...');
-            updateDataStatus('loading', 'Fetching latest fire data...');
-            
-            let res, data, source;
-            
-            // Try primary ESRI ArcGIS service first
-            try {
-                res = await fetch(ALTERNATIVE_URL_1);
-                if (res.ok) {
-                    data = await res.json();
-                    source = 'ESRI ArcGIS MODIS';
-                } else throw new Error('Primary source failed');
-            } catch (err) {
-                console.log('Primary source failed, trying backup...');
-                
-                // Try backup ESRI service
-                try {
-                    res = await fetch(ALTERNATIVE_URL_2);
-                    if (res.ok) {
-                        data = await res.json();
-                        source = 'ESRI ArcGIS Backup';
-                    } else throw new Error('Backup source failed');
-                } catch (err2) {
-                    console.log('Backup failed, trying NASA FIRMS with proxy...');
-                    
-                    // Try NASA FIRMS with CORS proxy as last resort
-                    const PROXIED_URL = CORS_PROXY_1 + encodeURIComponent(FIRMS_URL);
-                    res = await fetch(PROXIED_URL);
-                    if (!res.ok) throw new Error(`All sources failed! HTTP error! status: ${res.status}`);
-                    data = await res.json();
-                    source = 'NASA FIRMS (Proxied)';
-                }
-            }
-
-            // Remove existing layers
-            if (fireLayer) map.removeLayer(fireLayer);
-            if (heatLayer) map.removeLayer(heatLayer);
-
-            console.log(`Found ${data.features.length} fire detections from ${source}`);
-
-            // Check data freshness
-            const now = new Date();
-            lastDataTime = now;
-            dataSourceUsed = source;
-
-            // Prepare data for heat map
-            const heatData = [];
-
-            data.features.forEach(feature => {
-                const coords = feature.geometry.coordinates;
-                const brightness = feature.properties.brightness || feature.properties.BRIGHTNESS || 300;
-                
-                // Normalize brightness for heat intensity (0-1 scale)
-                const intensity = Math.min(brightness / 400, 1);
-                
-                heatData.push([coords[1], coords[0], intensity]);
-            });
-
-            // Create NASA-style heat map layer
-            heatLayer = L.heatLayer(heatData, {
-                radius: 25,
-                blur: 15,
-                maxZoom: 18,
-                max: 1.0,
-                gradient: {
-                    0.0: 'transparent',
-                    0.2: '#330000',  // Dark red
-                    0.4: '#660000',  // Red
-                    0.6: '#CC0000',  // Bright red
-                    0.7: '#FF3300',  // Orange-red
-                    0.8: '#FF6600',  // Orange
-                    0.9: '#FFAA00',  // Yellow-orange
-                    1.0: '#FFFF00'   // Yellow (hottest)
-                }
-            }).addTo(map);
-
-            // Create fire perimeter circles for detailed view
-            fireLayer = L.geoJSON(data, {
-                pointToLayer: function (feature, latlng) {
-                    const brightness = feature.properties.brightness || feature.properties.BRIGHTNESS || 300;
-                    
-                    // Create fire perimeter based on brightness
-                    const radius = Math.max(brightness / 50, 100); // Minimum 100m radius
-                    
-                    return L.circle(latlng, {
-                        radius: radius,
-                        fillColor: getFireColor(brightness),
-                        color: '#8B0000',
-                        weight: 2,
-                        opacity: 0.8,
-                        fillOpacity: 0.4
-                    });
-                },
-                onEachFeature: function (feature, layer) {
-                    const brightness = feature.properties.brightness || feature.properties.BRIGHTNESS || 'N/A';
-                    const confidence = feature.properties.confidence || feature.properties.CONFIDENCE || 'N/A';
-                    const acqDate = feature.properties.acq_date || feature.properties.ACQ_DATE || 'N/A';
-                    const acqTime = feature.properties.acq_time || feature.properties.ACQ_TIME || 'N/A';
-                    
-                    let info = `<div style="font-family: Arial, sans-serif;">
-                                <strong style="color: #8B0000;">🔥 ACTIVE FIRE DETECTION</strong><br>
-                                <strong>Brightness Temperature:</strong> ${brightness}K<br>
-                                <strong>Confidence:</strong> ${confidence}%<br>
-                                <strong>Detection Date:</strong> ${acqDate}<br>
-                                <strong>Detection Time:</strong> ${acqTime} UTC<br>
-                                <strong>Fire Intensity:</strong> ${getFireIntensity(brightness)}<br>
-                                <small style="color: #666;">Source: ${source}</small>
-                                </div>`;
-                    layer.bindPopup(info);
-                }
-            }).addTo(map);
-
-            updateDataStatus('fresh', `✅ Data updated successfully (${data.features.length} fires)`);
-            console.log(`Fire data updated: ${new Date().toLocaleTimeString()}`);
-
-        } catch (err) {
-            console.error('Failed to load fire data:', err);
-            updateDataStatus('error', '⚠️ Data update failed - showing cached data');
-        }
-    }
-
-    // Update data status indicator
-    function updateDataStatus(status, message) {
-        const statusElement = document.getElementById('dataStatus');
-        const statusText = document.getElementById('statusText');
-        const lastUpdate = document.getElementById('lastUpdate');
-        
-        // Remove all status classes
-        statusElement.classList.remove('status-fresh', 'status-stale', 'status-error');
-        
-        // Add appropriate status class
-        statusElement.classList.add(`status-${status}`);
-        
-        statusText.textContent = message;
-        lastUpdate.textContent = `Last update: ${new Date().toLocaleTimeString()} (${dataSourceUsed})`;
-    }
-
-    // Get fire color based on brightness temperature
-    function getFireColor(brightness) {
-        if (brightness >= 400) return '#FFFF00'; // Yellow - very hot
-        if (brightness >= 350) return '#FF6600'; // Orange - hot
-        if (brightness >= 320) return '#FF3300'; // Red-orange - moderate
-        if (brightness >= 300) return '#CC0000'; // Red - low
-        return '#660000'; // Dark red - very low
-    }
-
-    // Get fire intensity description
-    function getFireIntensity(brightness) {
-        if (brightness >= 400) return 'Very High';
-        if (brightness >= 350) return 'High';
-        if (brightness >= 320) return 'Moderate';
-        if (brightness >= 300) return 'Low';
-        return 'Very Low';
-    }
-
-    // Load data initially
-    loadFireData();
-
-    // Auto-refresh every 15 minutes (900000 ms)
-    setInterval(loadFireData, 900000);
-
-    // Visitor Counter
-    function updateVisitorCount() {
-        // Get current visitor count from localStorage
-        let visitorCount = localStorage.getItem('firemap_visitors');
-        
-        if (!visitorCount) {
-            // First time visitor
-            visitorCount = 1;
-        } else {
-            // Increment visitor count
-            visitorCount = parseInt(visitorCount) + 1;
-        }
-        
-        // Store updated count
-        localStorage.setItem('firemap_visitors', visitorCount);
-        
-        // Display the count
-        document.getElementById('visitorCount').textContent = visitorCount;
-    }
-
-    // Update visitor count when page loads
-    updateVisitorCount();
-</script>
+<!-- Custom JavaScript -->
+<script src="app.js"></script>
+<script src="reports.js"></script>
 
 </body>
 </html>
