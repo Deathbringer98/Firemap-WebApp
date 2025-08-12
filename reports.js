@@ -10,14 +10,83 @@ const DEDUPE_WINDOW_MS = 60 * 60 * 1000;         // within last 1 hour
 // Admin mode - bypasses all restrictions
 let isAdminMode = localStorage.getItem('firemap_admin_mode') === 'true';
 
-// Admin toggle function (call from browser console or add button)
-window.toggleAdminMode = function() {
+// Obfuscated admin functions
+const _0x4a8b = ['admin', 'true', 'false', 'ENABLED', 'DISABLED', 'All restrictions bypassed', 'Normal restrictions active'];
+const _0x1f3c = (function() {
+    let _0x2d4e = true;
+    return function(_0x3f5a, _0x6b7c) {
+        const _0x8d9e = _0x2d4e ? function() {
+            if (_0x6b7c) {
+                const _0x1a2b = _0x6b7c.apply(_0x3f5a, arguments);
+                _0x6b7c = null;
+                return _0x1a2b;
+            }
+        } : function() {};
+        _0x2d4e = false;
+        return _0x8d9e;
+    };
+})();
+
+// Decoy functions to confuse inspection
+const debugMode = false;
+const testMode = false;
+window.enableDebugMode = function() { console.log('Debug mode is disabled in production'); };
+window.enableTestMode = function() { console.log('Test mode is disabled in production'); };
+window.adminAccess = function() { console.log('Access denied: Invalid credentials'); };
+window.deleteReport = function() { console.log('Function not implemented'); };
+
+// Obfuscated admin toggle
+const _0xa7f2 = function() {
+    const _0xc4d5 = 'firemap_' + _0x4a8b[0] + '_mode';
     isAdminMode = !isAdminMode;
-    localStorage.setItem('firemap_admin_mode', isAdminMode.toString());
-    console.log(`Admin mode ${isAdminMode ? 'ENABLED' : 'DISABLED'} - ${isAdminMode ? 'All restrictions bypassed' : 'Normal restrictions active'}`);
+    localStorage.setItem(_0xc4d5, isAdminMode.toString());
+    console.log(`${_0x4a8b[0].charAt(0).toUpperCase() + _0x4a8b[0].slice(1)} mode ${isAdminMode ? _0x4a8b[3] : _0x4a8b[4]} - ${isAdminMode ? _0x4a8b[5] : _0x4a8b[6]}`);
     updateAdminIndicator();
+    // Refresh map to show/hide admin buttons
+    if (userReportLayer) {
+        userReportLayer.clearLayers();
+        userReports.forEach(report => addUserReportToMap(report));
+    }
     return isAdminMode;
 };
+
+// Admin toggle function with obfuscation
+window[('tog' + 'gle' + 'Adm' + 'in' + 'Mo' + 'de')] = _0xa7f2;
+
+// Obfuscated admin delete function
+const _0xb8g3 = function(reportId) {
+    const _0xe9f0 = localStorage.getItem('firemap_' + _0x4a8b[0] + '_mode') === _0x4a8b[1];
+    if (!_0xe9f0) {
+        console.log('❌ Insufficient privileges for this operation');
+        return false;
+    }
+    
+    const reportIndex = userReports.findIndex(r => r.id === reportId);
+    if (reportIndex === -1) {
+        alert('Report not found');
+        return false;
+    }
+    
+    const _0xg1h2 = userReports[reportIndex];
+    if (confirm(`🔧 ADMIN: Permanently delete ${_0xg1h2.type} report from ${new Date(_0xg1h2.timestamp).toLocaleString()}?`)) {
+        userReports.splice(reportIndex, 1);
+        localStorage.setItem('firemap_user_reports', JSON.stringify(userReports));
+        
+        // Refresh map markers
+        if (userReportLayer) {
+            userReportLayer.clearLayers();
+            userReports.forEach(report => addUserReportToMap(report));
+        }
+        
+        console.log(`🔧 ${_0x4a8b[0].toUpperCase()} deletion successful: Report ID ${reportId}`);
+        alert('Report permanently deleted by administrator');
+        return true;
+    }
+    return false;
+};
+
+// Expose admin delete with obfuscated name
+window[String.fromCharCode(95, 97, 100, 109, 105, 110, 68, 101, 108, 101, 116, 101)] = _0xb8g3;
 
 // Show admin status
 function updateAdminIndicator() {
@@ -37,31 +106,37 @@ function updateAdminIndicator() {
     indicator.style.display = isAdminMode ? 'block' : 'none';
 }
 
-// Keyboard shortcut: Ctrl+Shift+A to toggle admin mode
-document.addEventListener('keydown', function(e) {
-    if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+// Obfuscated keyboard shortcut
+const _0xk3y5 = function(e) {
+    const _0x7h8i = e.ctrlKey && e.shiftKey && e.key === 'A';
+    if (_0x7h8i) {
         e.preventDefault();
-        toggleAdminMode();
+        window[('tog' + 'gle' + 'Adm' + 'in' + 'Mo' + 'de')]();
     }
-});
+};
+document.addEventListener('keydown', _0xk3y5);
 
-// Triple-click on visitor counter to show admin button (hidden feature)
-document.addEventListener('DOMContentLoaded', function() {
+// Obfuscated triple-click admin reveal
+const _0x9j0k = (function() {
     let clickCount = 0;
+    return function() {
+        clickCount++;
+        if (clickCount === 3) {
+            const adminBtn = document.getElementById(('adm' + 'in' + 'Tog' + 'gle' + 'Btn'));
+            if (adminBtn) {
+                adminBtn.style.display = 'block';
+                console.log('🔧 ' + _0x4a8b[0].toUpperCase() + ' button revealed!');
+            }
+            clickCount = 0;
+        }
+        setTimeout(() => { clickCount = 0; }, 1000);
+    };
+})();
+
+document.addEventListener('DOMContentLoaded', function() {
     const visitorCounter = document.getElementById('visitorCounter');
     if (visitorCounter) {
-        visitorCounter.addEventListener('click', function() {
-            clickCount++;
-            if (clickCount === 3) {
-                const adminBtn = document.getElementById('adminToggleBtn');
-                if (adminBtn) {
-                    adminBtn.style.display = 'block';
-                    console.log('🔧 Admin button revealed! Use Ctrl+Shift+A or the button to toggle admin mode.');
-                }
-                clickCount = 0;
-            }
-            setTimeout(() => { clickCount = 0; }, 1000);
-        });
+        visitorCounter.addEventListener('click', _0x9j0k);
     }
 });
 
@@ -384,6 +459,10 @@ function addUserReportToMap(report) {
     const statusColor = report.isActive ? '#6a0dad' : '#888';
     const updateButton = `<button onclick="openUpdateForm(${report.id})" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; margin-top: 5px;">Update Report</button>`;
     
+    // Admin delete button (obfuscated)
+    const adminDeleteBtn = isAdminMode ? 
+        `<button onclick="window[String.fromCharCode(95,97,100,109,105,110,68,101,108,101,116,101)](${report.id})" style="background: #ff4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; margin-top: 5px; margin-left: 5px;">🗑️ Admin Delete</button>` : '';
+    
     const popupContent = `
         <div style="font-family: Arial, sans-serif;">
             <strong style="color: ${statusColor};">${icon} USER REPORT - ${statusText}</strong><br>
@@ -395,7 +474,7 @@ function addUserReportToMap(report) {
             <strong>Reporter:</strong> ${report.reporter}<br>
             ${getEvacuationInfo(report.severity, report.type)}
             <small style="color: #666;">Community-reported data</small><br>
-            ${updateButton}
+            ${updateButton}${adminDeleteBtn}
         </div>
     `;
     
