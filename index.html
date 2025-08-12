@@ -40,6 +40,25 @@
             z-index: 1000;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
+        
+        .data-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            max-width: 250px;
+        }
+        
+        .status-fresh { border-left: 4px solid #00ff00; }
+        .status-stale { border-left: 4px solid #ffaa00; }
+        .status-error { border-left: 4px solid #ff0000; }
     </style>
 </head>
 <body>
@@ -53,6 +72,12 @@
 <!-- Visitor Counter -->
 <div class="visitor-counter" id="visitorCounter">
     Visitors: <span id="visitorCount">0</span>
+</div>
+
+<!-- Data Status Indicator -->
+<div class="data-status status-fresh" id="dataStatus">
+    <div id="statusText">🛰️ Checking data...</div>
+    <div style="font-size: 10px; margin-top: 2px;" id="lastUpdate">Last update: Checking...</div>
 </div>
 
 <!-- Leaflet JS -->
@@ -73,8 +98,12 @@
     const CORS_PROXY_2 = 'https://api.allorigins.win/raw?url=';
     const FIRMS_URL = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/viirs/geojson/Global_VIIRS_C2_24h.geojson';
     
-    // Alternative: Use a different fire data source that's CORS-friendly
-    const ALTERNATIVE_URL = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/MODIS_Thermal_v1/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson';
+    // Multiple backup data sources
+    const ALTERNATIVE_URL_1 = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/MODIS_Thermal_v1/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson';
+    const ALTERNATIVE_URL_2 = 'https://services1.arcgis.com/4yjifSiIG17X0gW4/arcgis/rest/services/Fires/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson';
+
+    let lastDataTime = null;
+    let dataSourceUsed = 'Unknown';
 
     let fireLayer;
     let heatLayer;
@@ -82,24 +111,49 @@
     async function loadFireData() {
         try {
             console.log('Fetching fire data...');
+            updateDataStatus('loading', 'Fetching latest fire data...');
             
-            // Try the alternative ESRI ArcGIS service first (more CORS-friendly)
-            let res = await fetch(ALTERNATIVE_URL);
-            if (!res.ok) {
-                console.log('Alternative source failed, trying CORS proxy...');
-                // If that fails, try with CORS proxy
-                const PROXIED_URL = CORS_PROXY_1 + encodeURIComponent(FIRMS_URL);
-                res = await fetch(PROXIED_URL);
+            let res, data, source;
+            
+            // Try primary ESRI ArcGIS service first
+            try {
+                res = await fetch(ALTERNATIVE_URL_1);
+                if (res.ok) {
+                    data = await res.json();
+                    source = 'ESRI ArcGIS MODIS';
+                } else throw new Error('Primary source failed');
+            } catch (err) {
+                console.log('Primary source failed, trying backup...');
+                
+                // Try backup ESRI service
+                try {
+                    res = await fetch(ALTERNATIVE_URL_2);
+                    if (res.ok) {
+                        data = await res.json();
+                        source = 'ESRI ArcGIS Backup';
+                    } else throw new Error('Backup source failed');
+                } catch (err2) {
+                    console.log('Backup failed, trying NASA FIRMS with proxy...');
+                    
+                    // Try NASA FIRMS with CORS proxy as last resort
+                    const PROXIED_URL = CORS_PROXY_1 + encodeURIComponent(FIRMS_URL);
+                    res = await fetch(PROXIED_URL);
+                    if (!res.ok) throw new Error(`All sources failed! HTTP error! status: ${res.status}`);
+                    data = await res.json();
+                    source = 'NASA FIRMS (Proxied)';
+                }
             }
-            
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            const data = await res.json();
 
             // Remove existing layers
             if (fireLayer) map.removeLayer(fireLayer);
             if (heatLayer) map.removeLayer(heatLayer);
 
-            console.log(`Found ${data.features.length} fire detections`);
+            console.log(`Found ${data.features.length} fire detections from ${source}`);
+
+            // Check data freshness
+            const now = new Date();
+            lastDataTime = now;
+            dataSourceUsed = source;
 
             // Prepare data for heat map
             const heatData = [];
@@ -162,17 +216,35 @@
                                 <strong>Detection Date:</strong> ${acqDate}<br>
                                 <strong>Detection Time:</strong> ${acqTime} UTC<br>
                                 <strong>Fire Intensity:</strong> ${getFireIntensity(brightness)}<br>
-                                <small style="color: #666;">Data: NASA FIRMS/MODIS</small>
+                                <small style="color: #666;">Source: ${source}</small>
                                 </div>`;
                     layer.bindPopup(info);
                 }
             }).addTo(map);
 
+            updateDataStatus('fresh', `✅ Data updated successfully (${data.features.length} fires)`);
             console.log(`Fire data updated: ${new Date().toLocaleTimeString()}`);
 
         } catch (err) {
             console.error('Failed to load fire data:', err);
+            updateDataStatus('error', '⚠️ Data update failed - showing cached data');
         }
+    }
+
+    // Update data status indicator
+    function updateDataStatus(status, message) {
+        const statusElement = document.getElementById('dataStatus');
+        const statusText = document.getElementById('statusText');
+        const lastUpdate = document.getElementById('lastUpdate');
+        
+        // Remove all status classes
+        statusElement.classList.remove('status-fresh', 'status-stale', 'status-error');
+        
+        // Add appropriate status class
+        statusElement.classList.add(`status-${status}`);
+        
+        statusText.textContent = message;
+        lastUpdate.textContent = `Last update: ${new Date().toLocaleTimeString()} (${dataSourceUsed})`;
     }
 
     // Get fire color based on brightness temperature
