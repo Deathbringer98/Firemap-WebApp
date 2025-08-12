@@ -57,6 +57,8 @@
 
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Leaflet Heat Plugin for heat maps -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
     // Initialize Leaflet map
     const map = L.map('map').setView([20, 0], 2);
@@ -75,6 +77,7 @@
     const ALTERNATIVE_URL = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/MODIS_Thermal_v1/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson';
 
     let fireLayer;
+    let heatLayer;
 
     async function loadFireData() {
         try {
@@ -92,27 +95,75 @@
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data = await res.json();
 
-            // Remove previous layer if it exists
-            if (fireLayer) {
-                map.removeLayer(fireLayer);
-            }
+            // Remove existing layers
+            if (fireLayer) map.removeLayer(fireLayer);
+            if (heatLayer) map.removeLayer(heatLayer);
 
+            console.log(`Found ${data.features.length} fire detections`);
+
+            // Prepare data for heat map
+            const heatData = [];
+
+            data.features.forEach(feature => {
+                const coords = feature.geometry.coordinates;
+                const brightness = feature.properties.brightness || feature.properties.BRIGHTNESS || 300;
+                
+                // Normalize brightness for heat intensity (0-1 scale)
+                const intensity = Math.min(brightness / 400, 1);
+                
+                heatData.push([coords[1], coords[0], intensity]);
+            });
+
+            // Create NASA-style heat map layer
+            heatLayer = L.heatLayer(heatData, {
+                radius: 25,
+                blur: 15,
+                maxZoom: 18,
+                max: 1.0,
+                gradient: {
+                    0.0: 'transparent',
+                    0.2: '#330000',  // Dark red
+                    0.4: '#660000',  // Red
+                    0.6: '#CC0000',  // Bright red
+                    0.7: '#FF3300',  // Orange-red
+                    0.8: '#FF6600',  // Orange
+                    0.9: '#FFAA00',  // Yellow-orange
+                    1.0: '#FFFF00'   // Yellow (hottest)
+                }
+            }).addTo(map);
+
+            // Create fire perimeter circles for detailed view
             fireLayer = L.geoJSON(data, {
                 pointToLayer: function (feature, latlng) {
-                    return L.circleMarker(latlng, {
-                        radius: 5,
-                        fillColor: "red",
-                        color: "darkred",
-                        weight: 1,
-                        opacity: 1,
-                        fillOpacity: 0.8
+                    const brightness = feature.properties.brightness || feature.properties.BRIGHTNESS || 300;
+                    
+                    // Create fire perimeter based on brightness
+                    const radius = Math.max(brightness / 50, 100); // Minimum 100m radius
+                    
+                    return L.circle(latlng, {
+                        radius: radius,
+                        fillColor: getFireColor(brightness),
+                        color: '#8B0000',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.4
                     });
                 },
                 onEachFeature: function (feature, layer) {
-                    let info = `<strong>Fire Detection</strong><br>
-                                Brightness: ${feature.properties.brightness || 'N/A'}<br>
-                                Date: ${feature.properties.acq_date || 'N/A'}<br>
-                                Time: ${feature.properties.acq_time || 'N/A'} UTC`;
+                    const brightness = feature.properties.brightness || feature.properties.BRIGHTNESS || 'N/A';
+                    const confidence = feature.properties.confidence || feature.properties.CONFIDENCE || 'N/A';
+                    const acqDate = feature.properties.acq_date || feature.properties.ACQ_DATE || 'N/A';
+                    const acqTime = feature.properties.acq_time || feature.properties.ACQ_TIME || 'N/A';
+                    
+                    let info = `<div style="font-family: Arial, sans-serif;">
+                                <strong style="color: #8B0000;">🔥 ACTIVE FIRE DETECTION</strong><br>
+                                <strong>Brightness Temperature:</strong> ${brightness}K<br>
+                                <strong>Confidence:</strong> ${confidence}%<br>
+                                <strong>Detection Date:</strong> ${acqDate}<br>
+                                <strong>Detection Time:</strong> ${acqTime} UTC<br>
+                                <strong>Fire Intensity:</strong> ${getFireIntensity(brightness)}<br>
+                                <small style="color: #666;">Data: NASA FIRMS/MODIS</small>
+                                </div>`;
                     layer.bindPopup(info);
                 }
             }).addTo(map);
@@ -122,6 +173,24 @@
         } catch (err) {
             console.error('Failed to load fire data:', err);
         }
+    }
+
+    // Get fire color based on brightness temperature
+    function getFireColor(brightness) {
+        if (brightness >= 400) return '#FFFF00'; // Yellow - very hot
+        if (brightness >= 350) return '#FF6600'; // Orange - hot
+        if (brightness >= 320) return '#FF3300'; // Red-orange - moderate
+        if (brightness >= 300) return '#CC0000'; // Red - low
+        return '#660000'; // Dark red - very low
+    }
+
+    // Get fire intensity description
+    function getFireIntensity(brightness) {
+        if (brightness >= 400) return 'Very High';
+        if (brightness >= 350) return 'High';
+        if (brightness >= 320) return 'Moderate';
+        if (brightness >= 300) return 'Low';
+        return 'Very Low';
     }
 
     // Load data initially
