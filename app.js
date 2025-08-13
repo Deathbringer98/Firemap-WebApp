@@ -233,9 +233,9 @@ document.addEventListener('DOMContentLoaded', function() {
     updateVisitorCount();
     
     // Load user reports after a short delay to ensure map is ready
-    setTimeout(() => {
+    setTimeout(async () => {
         if (typeof loadUserReports === 'function') {
-            loadUserReports();
+            await loadUserReports();
         } else {
             console.warn('⚠️ loadUserReports function not found - reports.js may not be loaded');
         }
