@@ -7,6 +7,39 @@ const RATE_LIMIT_PER_DAY = 3;                     // Max 3 reports per day per d
 const DEDUPE_RADIUS_M = 200;                      // Prevent duplicates within 200m
 const DEDUPE_WINDOW_MS = 60 * 60 * 1000;         // within last 1 hour
 
+// Mobile detection
+function isMobileDevice() {
+    return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Cancel location selection (for mobile)
+function cancelLocationSelection() {
+    isReportingMode = false;
+    window.isReportingMode = false;
+    map.getContainer().style.cursor = '';
+    map.off('click', selectReportLocation);
+    
+    // Remove location indicator
+    const indicator = document.getElementById('locationIndicator');
+    if (indicator) indicator.remove();
+    
+    // Show form again
+    const overlay = document.getElementById('formOverlay');
+    const form = document.getElementById('reportForm');
+    if (overlay && form) {
+        overlay.style.background = 'rgba(0,0,0,0.5)';
+        overlay.style.pointerEvents = '';
+        form.style.display = 'block';
+    }
+    
+    // Reset button
+    const button = document.getElementById('locationSelectBtn');
+    if (button) {
+        button.textContent = '📍 Select on Map';
+        button.style.background = 'linear-gradient(135deg, #6a0dad, #8a2be2)';
+    }
+}
+
 // Mode - bypasses all restrictions
 let isAdminMode = localStorage.getItem('firemap_admin_mode') === 'true';
 
@@ -296,9 +329,58 @@ function activateLocationSelection(btn) {
         btn.textContent = '📍 Click on Map';
         btn.style.background = '#ff6b35';
     }
-    // Prevent overlay from catching map clicks while selecting
-    const overlay = document.getElementById('formOverlay');
-    if (overlay) overlay.style.pointerEvents = 'none';
+    
+    // On mobile, minimize the form during location selection
+    if (isMobileDevice()) {
+        const overlay = document.getElementById('formOverlay');
+        const form = document.getElementById('reportForm');
+        if (overlay && form) {
+            // Hide the form but keep overlay visible with a small indicator
+            form.style.display = 'none';
+            overlay.style.background = 'rgba(0,0,0,0.3)';
+            
+            // Add location selection indicator
+            const indicator = document.createElement('div');
+            indicator.id = 'locationIndicator';
+            indicator.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: linear-gradient(135deg, #ff6b35, #f7931e);
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 25px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+                    z-index: 1001;
+                    text-align: center;
+                    animation: pulse 2s infinite;
+                ">
+                    📍 Tap anywhere on the map to set location
+                    <div style="font-size: 12px; margin-top: 4px; opacity: 0.9;">
+                        Tap to cancel: 
+                        <span onclick="cancelLocationSelection()" style="
+                            background: rgba(255,255,255,0.2);
+                            padding: 4px 8px;
+                            border-radius: 12px;
+                            cursor: pointer;
+                            margin-left: 5px;
+                        ">✕ Cancel</span>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(indicator);
+        }
+        // Prevent overlay from catching map clicks while selecting
+        overlay.style.pointerEvents = 'none';
+    } else {
+        // Desktop behavior - just prevent overlay from catching map clicks
+        const overlay = document.getElementById('formOverlay');
+        if (overlay) overlay.style.pointerEvents = 'none';
+    }
     
     // Add click handler for location selection
     map.on('click', selectReportLocation);
@@ -337,14 +419,129 @@ function selectReportLocation(e) {
         button.style.background = '#28a745';
     }
     
-    // Disable reporting mode but keep the marker
+    // Disable reporting mode
     isReportingMode = false;
     window.isReportingMode = false;
     map.getContainer().style.cursor = '';
     map.off('click', selectReportLocation);
-    // Re-enable overlay interactions
+    
+    // Handle mobile vs desktop differently
+    if (isMobileDevice()) {
+        // Remove location indicator
+        const indicator = document.getElementById('locationIndicator');
+        if (indicator) indicator.remove();
+        
+        // Show confirmation dialog for mobile
+        showMobileLocationConfirmation(lat, lng);
+    } else {
+        // Desktop: just re-enable overlay interactions
+        const overlay = document.getElementById('formOverlay');
+        if (overlay) overlay.style.pointerEvents = '';
+    }
+}
+
+function showMobileLocationConfirmation(lat, lng) {
+    // Create confirmation overlay
+    const confirmOverlay = document.createElement('div');
+    confirmOverlay.id = 'locationConfirmOverlay';
+    confirmOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 1002;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
+    
+    confirmOverlay.innerHTML = `
+        <div style="
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 350px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        ">
+            <div style="font-size: 48px; margin-bottom: 15px;">📍</div>
+            <h3 style="margin: 0 0 15px 0; color: #333;">Location Selected!</h3>
+            <p style="margin: 0 0 20px 0; color: #666; line-height: 1.4;">
+                Coordinates: <strong>${lat}, ${lng}</strong><br>
+                Would you like to submit your report at this location?
+            </p>
+            <div style="display: flex; gap: 12px;">
+                <button onclick="cancelMobileLocationConfirm()" style="
+                    flex: 1;
+                    padding: 12px;
+                    background: #6c757d;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">Choose Different Location</button>
+                <button onclick="confirmMobileLocation()" style="
+                    flex: 1;
+                    padding: 12px;
+                    background: linear-gradient(135deg, #ff6b35, #f7931e);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">Continue with Report</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(confirmOverlay);
+}
+
+function cancelMobileLocationConfirm() {
+    // Remove confirmation overlay
+    const confirmOverlay = document.getElementById('locationConfirmOverlay');
+    if (confirmOverlay) confirmOverlay.remove();
+    
+    // Remove temp marker
+    if (tempMarker) {
+        map.removeLayer(tempMarker);
+        tempMarker = null;
+    }
+    
+    // Reset location field and button
+    document.getElementById('location').value = '';
+    document.getElementById('location').placeholder = 'Click \'Select on Map\' to choose location';
+    const button = document.getElementById('locationSelectBtn');
+    if (button) {
+        button.textContent = '📍 Select on Map';
+        button.style.background = 'linear-gradient(135deg, #6a0dad, #8a2be2)';
+    }
+    
+    // Reactivate location selection
+    activateLocationSelection();
+}
+
+function confirmMobileLocation() {
+    // Remove confirmation overlay
+    const confirmOverlay = document.getElementById('locationConfirmOverlay');
+    if (confirmOverlay) confirmOverlay.remove();
+    
+    // Show the report form again
     const overlay = document.getElementById('formOverlay');
-    if (overlay) overlay.style.pointerEvents = '';
+    const form = document.getElementById('reportForm');
+    if (overlay && form) {
+        overlay.style.background = 'rgba(0,0,0,0.5)';
+        overlay.style.pointerEvents = '';
+        form.style.display = 'block';
+    }
 }
 
 function closeReportForm() {
@@ -361,11 +558,18 @@ function closeReportForm() {
         tempMarker = null;
     }
     
+    // Clean up mobile indicators
+    const locationIndicator = document.getElementById('locationIndicator');
+    if (locationIndicator) locationIndicator.remove();
+    
+    const confirmOverlay = document.getElementById('locationConfirmOverlay');
+    if (confirmOverlay) confirmOverlay.remove();
+    
     // Reset button
     const button = document.getElementById('locationSelectBtn');
     if (button) {
         button.textContent = '📍 Select on Map';
-        button.style.background = '#6a0dad';
+        button.style.background = 'linear-gradient(135deg, #6a0dad, #8a2be2)';
     }
     // Re-enable overlay interactions
     const overlay = document.getElementById('formOverlay');
@@ -434,15 +638,31 @@ function submitReport() {
         lastUpdated: new Date().toISOString()
     };
     
+    console.log('📍 Submitting report:', report);
+    
     // Add to reports array
     userReports.push(report);
+    console.log('📊 Total reports now:', userReports.length);
     
     // Save to localStorage
-    localStorage.setItem('firemap_user_reports', JSON.stringify(userReports));
+    try {
+        localStorage.setItem('firemap_user_reports', JSON.stringify(userReports));
+        console.log('💾 Report saved to localStorage successfully');
+    } catch (error) {
+        console.error('❌ Failed to save report to localStorage:', error);
+        alert('Error saving report. Please try again.');
+        return;
+    }
+    
     markReportSubmitted();
     
     // Add to map
-    addUserReportToMap(report);
+    try {
+        addUserReportToMap(report);
+        console.log('🗺️ Report added to map successfully');
+    } catch (error) {
+        console.error('❌ Failed to add report to map:', error);
+    }
     
     // Close form
     closeReportForm();
@@ -561,16 +781,39 @@ function getEvacuationInfo(severity, type) {
 
 // Load saved user reports on startup
 function loadUserReports() {
+    console.log('🔄 Loading user reports from localStorage...');
     const savedReports = localStorage.getItem('firemap_user_reports');
+    
     if (savedReports) {
-        userReports = JSON.parse(savedReports);
-        // Ensure backward compatibility with existing reports
-        userReports.forEach(report => {
-            if (!report.originalTimestamp) report.originalTimestamp = report.timestamp;
-            if (!report.lastUpdated) report.lastUpdated = report.timestamp;
-            if (report.isActive === undefined) report.isActive = true;
-        });
-        userReports.forEach(report => addUserReportToMap(report));
+        try {
+            userReports = JSON.parse(savedReports);
+            console.log(`📊 Found ${userReports.length} saved reports`);
+            
+            // Ensure backward compatibility with existing reports
+            userReports.forEach(report => {
+                if (!report.originalTimestamp) report.originalTimestamp = report.timestamp;
+                if (!report.lastUpdated) report.lastUpdated = report.timestamp;
+                if (report.isActive === undefined) report.isActive = true;
+            });
+            
+            // Add each report to map
+            userReports.forEach((report, index) => {
+                try {
+                    addUserReportToMap(report);
+                    console.log(`✅ Added report ${index + 1} to map: ${report.type} at ${report.lat}, ${report.lng}`);
+                } catch (error) {
+                    console.error(`❌ Failed to add report ${index + 1} to map:`, error);
+                }
+            });
+            
+            console.log('🗺️ All user reports loaded successfully');
+        } catch (error) {
+            console.error('❌ Failed to parse saved reports:', error);
+            userReports = [];
+        }
+    } else {
+        console.log('📭 No saved reports found');
+        userReports = [];
     }
     
     // Initialize mode indicator

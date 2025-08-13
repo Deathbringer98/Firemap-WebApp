@@ -226,10 +226,20 @@ function updateVisitorCount() {
 
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Initializing Fire Map application...');
+    
     initializeMap();
     loadFireData();
     updateVisitorCount();
-    loadUserReports();
+    
+    // Load user reports after a short delay to ensure map is ready
+    setTimeout(() => {
+        if (typeof loadUserReports === 'function') {
+            loadUserReports();
+        } else {
+            console.warn('⚠️ loadUserReports function not found - reports.js may not be loaded');
+        }
+    }, 1000);
     
     // Auto-refresh every 15 minutes
     setInterval(loadFireData, 900000);

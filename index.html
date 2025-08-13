@@ -77,13 +77,11 @@
     
     <div class="form-group">
         <label for="location">Location:</label>
-        <div style="display: flex; align-items: center;">
-            <input type="text" id="location" placeholder="Click 'Select on Map' to choose location" readonly style="flex: 1;">
-            <button id="locationSelectBtn" type="button" onclick="activateLocationSelection(this)" style="margin-left: 10px; padding: 8px 12px; background: #6a0dad; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                📍 Select on Map
-            </button>
-        </div>
-        <small style="color: #666; font-size: 11px;">Click the button above, then click anywhere on the map to set the report location</small>
+        <input type="text" id="location" placeholder="Click 'Select on Map' to choose location" readonly style="width: 100%; margin-bottom: 8px;">
+        <button id="locationSelectBtn" type="button" onclick="activateLocationSelection(this)" style="width: 100%; padding: 12px; background: #6a0dad; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+            📍 Select on Map
+        </button>
+        <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">Tap the button above, then tap anywhere on the map to set the location</small>
     </div>
     
     <div class="form-group">
@@ -102,8 +100,8 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
 <!-- Custom JavaScript -->
-<script src="app.js"></script>
 <script src="reports.js"></script>
+<script src="app.js"></script>
 
 </body>
 </html>
