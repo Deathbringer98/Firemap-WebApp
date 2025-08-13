@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Wildfire Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Main Layout -->
+<div class="sidebar"></div>
+<div class="map-container">
+    <div id="map"></div>
+</div>
+<div class="sidebar"></div>
+
+<!-- Visitor Counter -->
+<div class="visitor-counter" id="visitorCounter" title="Unique sessions on this browser/device">
+    Sessions: <span id="visitorCount">0</span>
+</div>
+
+<!-- User Report Button -->
+<button class="report-button" onclick="openReportForm()">
+    🚨 Report Fire
+</button>
+
+<!-- Toggle Button (hidden by default) -->
+<button id="adminToggleBtn" onclick="window[('tog'+'gle'+'Adm'+'in'+'Mo'+'de')]()" style="
+    position: fixed; bottom: 20px; right: 20px; background: #333; color: white; 
+    border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; 
+    font-size: 12px; z-index: 1500; display: none;
+">🔧 Mode</button>
+
+<!-- Data Status Indicator -->
+<div class="data-status status-fresh" id="dataStatus">
+    <div id="statusText">🛰️ Checking data...</div>
+    <div style="font-size: 10px; margin-top: 2px;" id="lastUpdate">Last update: Checking...</div>
+</div>
+
+<!-- Report Form Overlay -->
+<div class="form-overlay" id="formOverlay" onclick="if(!window.isReportingMode) closeReportForm()"></div>
+
+<!-- Report Form -->
+<div class="report-form" id="reportForm">
+    <h3 style="margin-top: 0; color: #6a0dad;">🚨 Report Fire Incident</h3>
+    
+    <div class="form-group">
+        <label for="reportType">Report Type:</label>
+        <select id="reportType">
+            <option value="fire">Active Fire</option>
+            <option value="smoke">Smoke Sighting</option>
+            <option value="evacuation">Evacuation Zone</option>
+            <option value="road_closure">Road Closure</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="severity">Severity Level:</label>
+        <select id="severity">
+            <option value="low">Low - Small/Contained</option>
+            <option value="moderate">Moderate - Growing</option>
+            <option value="high">High - Large/Spreading</option>
+            <option value="extreme">Extreme - Immediate Danger</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="description">Description:</label>
+        <textarea id="description" rows="3" placeholder="Describe what you see (size, direction, structures at risk, etc.)"></textarea>
+    </div>
+    
+    <div class="form-group">
+        <label for="location">Location:</label>
+        <input type="text" id="location" placeholder="Click 'Select on Map' to choose location" readonly style="width: 100%; margin-bottom: 8px;">
+        <button id="locationSelectBtn" type="button" onclick="activateLocationSelection(this)" style="width: 100%; padding: 12px; background: #6a0dad; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+            📍 Select on Map
+        </button>
+        <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">Tap the button above, then tap anywhere on the map to set the location</small>
+    </div>
+    
+    <div class="form-group">
+        <label for="contactInfo">Contact Info (optional):</label>
+        <input type="text" id="contactInfo" placeholder="Phone/Email for follow-up">
+    </div>
+    
+    <div class="form-buttons">
+        <button class="btn-cancel" onclick="closeReportForm()">Cancel</button>
+        <button class="btn-submit" onclick="submitReport()">Submit Report</button>
+    </div>
+</div>
+
+<!-- JavaScript Libraries -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+<!-- Custom JavaScript -->
+<script src="reports.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
