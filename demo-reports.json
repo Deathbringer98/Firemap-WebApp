@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1638360000000,
+    "type": "fire",
+    "severity": "high", 
+    "description": "Large wildfire spreading rapidly near residential area. Multiple fire trucks on scene.",
+    "lat": 34.0522,
+    "lng": -118.2437,
+    "contactInfo": "Emergency Services",
+    "timestamp": "2024-01-15T10:30:00.000Z",
+    "originalTimestamp": "2024-01-15T10:30:00.000Z",
+    "reporter": "Community User",
+    "isActive": true,
+    "lastUpdated": "2024-01-15T10:30:00.000Z"
+  },
+  {
+    "id": 1638363600000,
+    "type": "smoke",
+    "severity": "moderate",
+    "description": "Heavy smoke visible from highway. Visibility reduced.",
+    "lat": 34.0622,
+    "lng": -118.2537,
+    "contactInfo": "Highway Patrol",
+    "timestamp": "2024-01-15T11:30:00.000Z", 
+    "originalTimestamp": "2024-01-15T11:30:00.000Z",
+    "reporter": "Community User",
+    "isActive": true,
+    "lastUpdated": "2024-01-15T11:30:00.000Z"
+  },
+  {
+    "id": 1638367200000,
+    "type": "evacuation",
+    "severity": "extreme",
+    "description": "Mandatory evacuation order for Oak Hills neighborhood. Proceed to community center immediately.",
+    "lat": 34.0422,
+    "lng": -118.2337,
+    "contactInfo": "Emergency Management",
+    "timestamp": "2024-01-15T12:30:00.000Z",
+    "originalTimestamp": "2024-01-15T12:30:00.000Z", 
+    "reporter": "Community User",
+    "isActive": true,
+    "lastUpdated": "2024-01-15T12:30:00.000Z"
+  }
+]

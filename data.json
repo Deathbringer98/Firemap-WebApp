@@ -1,0 +1,24 @@
+{
+  "reports": [
+    {
+      "id": 1723456789123,
+      "type": "fire",
+      "severity": "high",
+      "description": "Test report - Large wildfire spotted near residential area",
+      "lat": 34.0522,
+      "lng": -118.2437,
+      "contactInfo": "test@example.com",
+      "timestamp": "2025-08-12T18:30:00.000Z",
+      "originalTimestamp": "2025-08-12T18:30:00.000Z",
+      "reporter": "Community User",
+      "isActive": true,
+      "lastUpdated": "2025-08-12T18:30:00.000Z"
+    }
+  ],
+  "lastUpdated": "2025-08-12T18:30:00.000Z",
+  "metadata": {
+    "version": "1.0",
+    "totalReports": 1,
+    "activeReports": 1
+  }
+}

@@ -232,8 +232,12 @@ document.addEventListener('DOMContentLoaded', function() {
     loadFireData();
     updateVisitorCount();
     
-    // Load user reports after a short delay to ensure map is ready
+    // Initialize Firebase reporting system and load user reports
     setTimeout(async () => {
+        if (typeof initializeReporting === 'function') {
+            await initializeReporting();
+        }
+        
         if (typeof loadUserReports === 'function') {
             await loadUserReports();
         } else {

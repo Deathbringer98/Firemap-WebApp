@@ -1,47 +1,128 @@
-// User Reporting System with Firebase Sync
+// User Reporting System with Firebase Realtime Database (Simplified)
 
-// Firebase Configuration (Replace with your own project config)
-// For setup instructions, see FIREBASE_SETUP.md
-const firebaseConfig = {
-    // Demo config - replace with your real Firebase project
-    apiKey: "demo-key", 
-    authDomain: "demo-project.firebaseapp.com",
-    databaseURL: "https://demo-project-default-rtdb.firebaseio.com",
-    projectId: "demo-project",
-    storageBucket: "demo-project.appspot.com",
-    messagingSenderId: "000000000000",
-    appId: "demo-app-id"
-};
-
-// Initialize Firebase (if not already initialized)
+// Global variables for Firebase
 let database = null;
-let isFirebaseEnabled = false;
-
-try {
-    // Check if we have a real Firebase config (not the demo)
-    if (firebaseConfig.apiKey !== "demo-key" && typeof firebase !== 'undefined' && firebase.apps) {
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        database = firebase.database();
-        isFirebaseEnabled = true;
-        console.log('🔥 Firebase initialized successfully');
-    } else {
-        console.log('📱 Running in localStorage-only mode (Firebase not configured)');
-        console.log('💡 To enable real-time sync, see FIREBASE_SETUP.md');
-    }
-} catch (error) {
-    console.warn('⚠️ Firebase initialization failed, falling back to localStorage:', error);
-    database = null;
-    isFirebaseEnabled = false;
-}
+let isFirebaseReady = false;
+let userReports = JSON.parse(localStorage.getItem('firemap_user_reports') || '[]');
+let reportIndex = 0;
 
 // Anti-abuse configuration
-const REPORT_TTL_MS = 24 * 60 * 60 * 1000;       // Expire reports after 24h (client-side)
+const REPORT_TTL_MS = 24 * 60 * 60 * 1000;       // Expire reports after 24h
 const REPORT_COOLDOWN_MS = 30 * 60 * 1000;       // 30 minutes between submissions per device
 const RATE_LIMIT_PER_DAY = 3;                     // Max 3 reports per day per device
 const DEDUPE_RADIUS_M = 200;                      // Prevent duplicates within 200m
 const DEDUPE_WINDOW_MS = 60 * 60 * 1000;         // within last 1 hour
+
+console.log('🔥 Firebase integration ready - waiting for module initialization');
+
+// Initialize Firebase reporting system using global Firebase objects
+async function initializeReporting() {
+    console.log('🚀 Initializing Firebase reporting system...');
+    
+    try {
+        // Wait longer for Firebase to load (since CDN might be slow)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        console.log('🔍 Checking Firebase availability after 2 second wait...');
+        console.log('🔍 firebaseReady:', window.firebaseReady);
+        console.log('🔍 firebaseDatabase:', !!window.firebaseDatabase);
+        console.log('🔍 firebaseRef:', typeof window.firebaseRef);
+        
+        // Check if Firebase is ready (simple check)
+        if (window.firebaseReady && window.firebaseDatabase && window.firebaseRef) {
+            database = window.firebaseDatabase;
+            isFirebaseReady = true;
+            
+            console.log('🎯 Firebase reporting system connected!');
+            console.log('🎯 Database object:', database);
+            
+            // Load existing reports from Firebase
+            await loadReportsFromFirebase();
+            
+            // Set up real-time listeners
+            setupRealtimeListeners();
+            
+        } else {
+            console.log('⚠️ Firebase not ready yet. Checking what we have:');
+            console.log('   firebaseReady:', !!window.firebaseReady);
+            console.log('   firebaseDatabase:', !!window.firebaseDatabase);
+            console.log('   firebaseRef:', !!window.firebaseRef);
+            throw new Error('Firebase not fully initialized');
+        }
+        
+    } catch (error) {
+        console.error('❌ Firebase reporting initialization failed:', error);
+        isFirebaseReady = false;
+        
+        // Fallback to localStorage only
+        userReports = JSON.parse(localStorage.getItem('firemap_user_reports') || '[]');
+        loadLocalReportsToMap();
+    }
+}
+
+// Set up real-time listeners for instant updates
+function setupRealtimeListeners() {
+    if (!database || !window.firebaseOnValue || !window.firebaseRef) {
+        console.log('⚠️ Firebase not ready for real-time listeners');
+        return;
+    }
+    
+    const reportsRef = window.firebaseRef(database, 'reports');
+    
+    // Listen for all changes to reports (v8 syntax)
+    window.firebaseOnValue(reportsRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            console.log('📡 Reports updated from Firebase');
+            
+            // Clear existing markers
+            if (window.userReportLayer) {
+                window.userReportLayer.clearLayers();
+            }
+            
+            // Filter and add valid reports
+            const now = Date.now();
+            const validReports = [];
+            
+            Object.values(data).forEach(report => {
+                if (isReportValid(report)) {
+                    validReports.push(report);
+                    try {
+                        addUserReportToMap(report);
+                    } catch (error) {
+                        console.error('❌ Failed to add report to map:', error);
+                    }
+                }
+            });
+            
+            userReports = validReports;
+            console.log(`📊 Synced ${validReports.length} active reports`);
+        } else {
+            console.log('� No reports in Firebase');
+            userReports = [];
+            if (window.userReportLayer) {
+                window.userReportLayer.clearLayers();
+            }
+        }
+    }, (error) => {
+        console.error('❌ Firebase listener error:', error);
+    });
+    
+    console.log('👂 Real-time listeners active - reports will sync instantly!');
+}
+
+// Check if report is valid and not expired
+function isReportValid(report) {
+    if (!report || !report.timestamp) return false;
+    
+    const now = Date.now();
+    const reportTime = new Date(report.timestamp).getTime();
+    return (now - reportTime) < REPORT_TTL_MS;
+}
+
+// Global variables for tracking
+// userReports already declared above
+// Anti-abuse constants already declared above
 
 // Mobile detection
 function isMobileDevice() {
@@ -233,120 +314,182 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// =============== FIREBASE SYNC FUNCTIONS ===============
+// =============== FIREBASE CLOUD STORAGE FUNCTIONS ===============
 
-// Save report to Firebase
-async function saveReportToFirebase(report) {
-    if (!isFirebaseEnabled) {
-        console.log('📱 Firebase not configured - report saved locally only');
+// Save report to Firebase for instant sharing (simplified)
+async function saveReportToCloud(report) {
+    console.log('🚀 Attempting to save report to Firebase:', report);
+    console.log('Firebase ready status:', isFirebaseReady);
+    console.log('Database available:', !!database);
+    console.log('Firebase functions available:', {
+        firebaseSet: !!window.firebaseSet,
+        firebaseRef: !!window.firebaseRef
+    });
+    
+    if (!isFirebaseReady || !database || !window.firebaseSet || !window.firebaseRef) {
+        console.log('⚠️ Firebase not ready, saving locally only');
+        
+        // Save to localStorage as fallback
+        userReports.push(report);
+        localStorage.setItem('firemap_user_reports', JSON.stringify(userReports));
         return false;
     }
     
     try {
-        await database.ref('reports/' + report.id).set({
+        console.log('💾 Saving to Firebase path: reports/' + report.id);
+        
+        // Save to Firebase with auto-expiring timestamp (v8 syntax)
+        const reportRef = window.firebaseRef(database, `reports/${report.id}`);
+        const reportData = {
             ...report,
-            synced: true,
-            syncTime: Date.now()
-        });
-        console.log('☁️ Report saved to Firebase:', report.id);
+            expiresAt: Date.now() + REPORT_TTL_MS // Auto-cleanup after 24h
+        };
+        
+        console.log('📦 Report data to save:', reportData);
+        
+        await window.firebaseSet(reportRef, reportData);
+        
+        console.log('☁️ Report saved to Firebase - visible to all users instantly!');
+        
+        // Also save locally for offline access
+        userReports.push(report);
+        localStorage.setItem('firemap_user_reports', JSON.stringify(userReports));
+        
         return true;
+        
     } catch (error) {
         console.error('❌ Failed to save to Firebase:', error);
+        
+        // Fallback to localStorage
+        userReports.push(report);
+        localStorage.setItem('firemap_user_reports', JSON.stringify(userReports));
         return false;
     }
 }
 
-// Load all reports from Firebase
+// Load reports from Firebase
 async function loadReportsFromFirebase() {
-    if (!isFirebaseEnabled) {
-        console.log('📱 Firebase not configured - loading from localStorage only');
+    if (!database || !window.firebaseGet || !window.firebaseRef) {
+        console.log('⚠️ Firebase not ready for loading reports');
         return [];
     }
     
     try {
-        const snapshot = await database.ref('reports').once('value');
-        const reports = [];
+        const reportsRef = window.firebaseRef(database, 'reports');
+        const snapshot = await window.firebaseGet(reportsRef);
+        const data = snapshot.val();
         
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const now = Date.now();
-            
-            // Filter out expired reports (older than 24 hours)
-            Object.values(data).forEach(report => {
-                if (report && report.timestamp && (now - report.timestamp) < REPORT_TTL_MS) {
-                    reports.push(report);
-                }
-            });
+        if (!data) {
+            console.log('📭 No reports found in Firebase');
+            return [];
         }
         
-        console.log(`☁️ Loaded ${reports.length} reports from Firebase`);
+        console.log('📥 Loaded reports from Firebase:', data);
+        
+        // Convert object to array and filter expired reports
+        const now = Date.now();
+        const reports = Object.values(data).filter(report => {
+            // Remove expired reports
+            if (report.expiresAt && report.expiresAt < now) {
+                const expiredRef = window.firebaseRef(database, `reports/${report.id}`);
+                window.firebaseRemove(expiredRef); // Auto-cleanup
+                return false;
+            }
+            return true;
+        });
+        
+        console.log(`� Loaded ${reports.length} active reports from Firebase`);
+        
+        // Update userReports and add to map
+        userReports = reports;
+        reports.forEach(report => {
+            try {
+                addUserReportToMap(report);
+            } catch (error) {
+                console.error('❌ Failed to add report to map:', error);
+            }
+        });
+        
         return reports;
+        
     } catch (error) {
         console.error('❌ Failed to load from Firebase:', error);
         return [];
     }
 }
 
-// Listen for real-time updates
-function setupFirebaseListener() {
-    if (!isFirebaseEnabled) return;
-    
-    database.ref('reports').on('child_added', (snapshot) => {
-        const report = snapshot.val();
-        if (report && !userReports.find(r => r.id === report.id)) {
-            // Only add if it's not already in our local array
-            userReports.push(report);
+// Load local reports if Firebase fails
+function loadLocalReportsToMap() {
+    console.log('💾 Loading local reports only');
+    userReports.forEach(report => {
+        try {
             addUserReportToMap(report);
-            console.log('🔄 New report added from Firebase:', report.id);
-        }
-    });
-    
-    database.ref('reports').on('child_removed', (snapshot) => {
-        const reportId = snapshot.key;
-        const index = userReports.findIndex(r => r.id === reportId);
-        if (index !== -1) {
-            userReports.splice(index, 1);
-            // Remove from map
-            if (userReportLayer) {
-                userReportLayer.eachLayer(layer => {
-                    if (layer.reportId === reportId) {
-                        userReportLayer.removeLayer(layer);
-                    }
-                });
-            }
-            console.log('🔄 Report removed from Firebase:', reportId);
+        } catch (error) {
+            console.error('❌ Failed to add local report to map:', error);
         }
     });
 }
 
-// Clean up expired reports from Firebase (admin only)
-async function cleanupExpiredReports() {
-    if (!isFirebaseEnabled || !isAdminMode) return;
+// Update report on map (for real-time updates)
+function updateReportOnMap(updatedReport) {
+    // Find and update the report in userReports
+    const index = userReports.findIndex(r => r.id === updatedReport.id);
+    if (index !== -1) {
+        userReports[index] = updatedReport;
+    }
     
-    try {
-        const snapshot = await database.ref('reports').once('value');
-        if (!snapshot.exists()) return;
+    // Remove old marker and add updated one
+    removeReportFromMap(updatedReport.id);
+    addUserReportToMap(updatedReport);
+}
+
+// Remove report from map
+function removeReportFromMap(reportId) {
+    if (!userReportLayer) return;
+    
+    userReportLayer.eachLayer(layer => {
+        if (layer.reportId === reportId) {
+            userReportLayer.removeLayer(layer);
+        }
+    });
+    
+    // Also remove from userReports array
+    userReports = userReports.filter(r => r.id !== reportId);
+}
+
+// Main function used by app.js to load reports
+async function loadReportsFromCloud() {
+    if (isFirebaseReady) {
+        return await loadReportsFromFirebase();
+    } else {
+        // Use localStorage if Firebase not available
+        const localReports = JSON.parse(localStorage.getItem('firemap_user_reports') || '[]');
         
-        const data = snapshot.val();
+        // Filter expired reports
         const now = Date.now();
-        let cleanedCount = 0;
+        const activeReports = localReports.filter(report => {
+            if (!report.timestamp) return false;
+            const reportTime = new Date(report.timestamp).getTime();
+            return (now - reportTime) < REPORT_TTL_MS;
+        });
         
-        for (const [key, report] of Object.entries(data)) {
-            if (report && report.timestamp && (now - report.timestamp) > REPORT_TTL_MS) {
-                await database.ref('reports/' + key).remove();
-                cleanedCount++;
-            }
-        }
-        
-        if (cleanedCount > 0) {
-            console.log(`🧹 Cleaned up ${cleanedCount} expired reports from Firebase`);
-        }
-    } catch (error) {
-        console.error('❌ Failed to cleanup expired reports:', error);
+        console.log(`💾 Loaded ${activeReports.length} local reports`);
+        userReports = activeReports;
+        return activeReports;
     }
 }
 
-// =============== END FIREBASE FUNCTIONS ===============
+// Initialize Firebase and load reports when page loads
+async function initializeReporting() {
+    console.log('� Initializing reporting system...');
+    await initializeFirebase();
+}
+// Check if Firebase is available
+async function checkCloudStorageAvailability() {
+    return isFirebaseReady && database;
+}
+
+// =============== END CLOUD STORAGE FUNCTIONS ===============
 
 // Meta state persisted per device
 function loadReportMeta() {
@@ -805,10 +948,10 @@ function submitReport() {
         return;
     }
     
-    // Save to Firebase for global sharing
-    saveReportToFirebase(report).then(success => {
+    // Save to cloud storage for global sharing
+    saveReportToCloud(report).then(success => {
         if (success) {
-            console.log('☁️ Report synced to cloud successfully');
+            console.log('☁️ Report synced to cloud storage successfully');
         } else {
             console.warn('⚠️ Report saved locally only (cloud sync failed)');
         }
@@ -943,8 +1086,8 @@ function getEvacuationInfo(severity, type) {
 async function loadUserReports() {
     console.log('🔄 Loading user reports...');
     
-    // First, try to load from Firebase (global reports)
-    const firebaseReports = await loadReportsFromFirebase();
+    // First, try to load from cloud storage (global reports)
+    const cloudReports = await loadReportsFromCloud();
     
     // Then load from localStorage (local fallback/offline reports)
     const savedReports = localStorage.getItem('firemap_user_reports');
@@ -953,15 +1096,15 @@ async function loadUserReports() {
     if (savedReports) {
         try {
             localReports = JSON.parse(savedReports);
-            console.log(`� Found ${localReports.length} local reports`);
+            console.log(`💾 Found ${localReports.length} local reports`);
         } catch (error) {
             console.error('❌ Failed to parse local reports:', error);
             localReports = [];
         }
     }
     
-    // Merge Firebase and local reports, avoiding duplicates
-    const allReports = [...firebaseReports];
+    // Merge cloud and local reports, avoiding duplicates
+    const allReports = [...cloudReports];
     localReports.forEach(localReport => {
         if (!allReports.find(r => r.id === localReport.id)) {
             allReports.push(localReport);
@@ -976,7 +1119,7 @@ async function loadUserReports() {
         return (now - reportTime) < REPORT_TTL_MS;
     });
     
-    console.log(`📊 Total active reports: ${userReports.length} (${firebaseReports.length} from cloud, ${localReports.length} local)`);
+    console.log(`📊 Total active reports: ${userReports.length} (${cloudReports.length} from cloud storage, ${localReports.length} local)`);
     
     // Ensure backward compatibility with existing reports
     userReports.forEach(report => {
@@ -996,14 +1139,6 @@ async function loadUserReports() {
     });
     
     console.log('🗺️ All user reports loaded successfully');
-    
-    // Set up real-time Firebase listener for new reports
-    setupFirebaseListener();
-    
-    // Clean up expired reports (admin only)
-    if (isAdminMode) {
-        cleanupExpiredReports();
-    }
     
     // Initialize mode indicator
     updateAdminIndicator();
