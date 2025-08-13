@@ -99,8 +99,6 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
-
-
 <!-- Direct Firebase REST API - No external scripts needed -->
 <script>
 console.log('🔧 Direct Firebase REST API - bypassing all CSP issues');
@@ -184,113 +182,6 @@ window.firebaseDirectAPI.write('test/connection', {
 }).then(success => {
   console.log(success ? '🌟 Firebase test SUCCESSFUL!' : '❌ Firebase test failed');
 });
-</script>
-
-// Firebase configuration (full config as ChatGPT suggested)
-const firebaseConfig = {
-  apiKey: "AIzaSyA8-Ly-6jMcKdN8VCtqIcfrbgWti7wo-Go",
-  authDomain: "firemap-webapp.firebaseapp.com",
-  databaseURL: "https://firemap-webapp-default-rtdb.firebaseio.com",
-  projectId: "firemap-webapp",
-  storageBucket: "firemap-webapp.firebasestorage.app",
-  messagingSenderId: "942399968777",
-  appId: "1:942399968777:web:b5f12c0c3f3baf01364ad8",
-  measurementId: "G-T69X97PBZ9"
-};
-
-// Check if Firebase loaded
-if (typeof firebase === 'undefined') {
-  console.error('❌ Firebase compat SDK failed to load');
-  console.log('🔧 Falling back to localStorage only');
-} else {
-  console.log('✅ Firebase compat SDK loaded successfully');
-  console.log('🔧 Firebase object:', firebase);
-  
-  try {
-    // Initialize Firebase with full config
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    
-    console.log('� Firebase initialized with full config');
-    console.log('🔥 Database URL:', firebaseConfig.databaseURL);
-    
-    // Test connection to authorized domain
-    console.log('🌐 Testing connection from domain:', window.location.hostname);
-    
-    // Make Firebase available globally
-    window.firebaseApp = firebase.app();
-    window.firebaseDatabase = database;
-    window.firebaseRef = (db, path) => db.ref(path);
-    window.firebaseSet = (ref, data) => ref.set(data);
-    window.firebaseOnValue = (ref, callback) => ref.on('value', callback);
-    window.firebaseGet = (ref) => ref.once('value');
-    window.firebaseRemove = (ref) => ref.remove();
-    window.firebaseReady = true;
-    
-    console.log('🎉 Firebase ready for cross-user sync!');
-    
-    // Test write permission
-    database.ref('test').set({ timestamp: Date.now() })
-      .then(() => console.log('✅ Test write successful - Firebase is working!'))
-      .catch(error => console.error('❌ Test write failed:', error));
-    
-  } catch (error) {
-    console.error('❌ Firebase initialization error:', error);
-    console.log('🔧 Check Firebase console for authorized domains');
-  }
-}
-</script>
-</script>
-
-<!-- Custom JavaScript -->
-  
-  // Wait a moment for Firebase to load
-  setTimeout(() => {
-    console.log('🔧 Firebase check after timeout:', typeof firebase);
-    
-    if (typeof firebase !== 'undefined') {
-      console.log('🎉 Firebase is available!');
-      
-      // Firebase config
-      const firebaseConfig = {
-        apiKey: "AIzaSyA8-Ly-6jMcKdN8VCtqIcfrbgWti7wo-Go",
-        authDomain: "firemap-webapp.firebaseapp.com",
-        databaseURL: "https://firemap-webapp-default-rtdb.firebaseio.com",
-        projectId: "firemap-webapp",
-        storageBucket: "firemap-webapp.firebasestorage.app",
-        messagingSenderId: "942399968777",
-        appId: "1:942399968777:web:b5f12c0c3f3baf01364ad8"
-      };
-
-      try {
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        
-        console.log('🔥 Firebase initialized!');
-        console.log('🔥 Database:', db);
-        
-        // Global setup
-        window.firebaseReady = true;
-        window.firebaseDatabase = db;
-        window.firebaseRef = (database, path) => database.ref(path);
-        window.firebaseSet = (ref, data) => ref.set(data);
-        window.firebaseOnValue = (ref, callback) => ref.on('value', callback);
-        window.firebaseGet = (ref) => ref.once('value');
-        window.firebaseRemove = (ref) => ref.remove();
-        
-        console.log('✅ Firebase ready for use!');
-        
-      } catch (error) {
-        console.error('❌ Firebase init error:', error);
-      }
-    } else {
-      console.error('❌ Firebase script did not load');
-      console.log('� Possible issues:');
-      console.log('   - GitHub Pages blocking external scripts');
-      console.log('   - CDN issues');
-      console.log('   - Content Security Policy');
-    }
-  }, 1000);
 </script>
 
 <!-- Custom JavaScript -->
