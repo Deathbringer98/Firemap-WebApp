@@ -584,7 +584,7 @@ function closeReportForm() {
     document.getElementById('severity').selectedIndex = 0;
 }
 
-function submitReport() {
+async function submitReport() {
     const reportType = document.getElementById('reportType').value;
     const severity = document.getElementById('severity').value;
     const description = document.getElementById('description').value;
@@ -644,7 +644,7 @@ function submitReport() {
     userReports.push(report);
     console.log('📊 Total reports now:', userReports.length);
     
-    // Save to localStorage
+    // Save to localStorage (always keep local cache for instant UX)
     try {
         localStorage.setItem('firemap_user_reports', JSON.stringify(userReports));
         console.log('💾 Report saved to localStorage successfully');
@@ -652,6 +652,32 @@ function submitReport() {
         console.error('❌ Failed to save report to localStorage:', error);
         alert('Error saving report. Please try again.');
         return;
+    }
+
+    // Best-effort: also send to backend API if available (same-origin /api)
+    try {
+        const payload = {
+            type: reportType,
+            severity: severity,
+            description: description,
+            location: `${lat}, ${lng}`,
+            contactInfo: contactInfo
+        };
+        const res = await fetch('/api/reports', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true
+        });
+        if (!res.ok) {
+            const txt = await res.text().catch(() => '');
+            console.warn('⚠️ API submission not OK:', res.status, txt);
+        } else {
+            const data = await res.json().catch(() => ({}));
+            console.log('✅ API submission result:', data);
+        }
+    } catch (err) {
+        console.warn('⚠️ Failed to submit to API (will rely on local cache):', err?.message || err);
     }
     
     markReportSubmitted();

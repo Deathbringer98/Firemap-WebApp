@@ -1,9 +1,15 @@
+<!--
+Real-Time Wildfire Map
+Copyright (c) 2025 Matthew Menchinton
+Licensed under the Apache License, Version 2.0
+https://wildfiremap.app
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Wildfire Map</title>
+    <title>Real-Time Wildfire Map - Updated</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
@@ -98,6 +104,14 @@
 <!-- JavaScript Libraries -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+<!-- Basic initialization - temporarily disabled Firebase -->
+<script>
+// Disable Firebase for now to get basic functionality working
+console.log('� Basic mode - Firebase temporarily disabled');
+window.firebaseReady = false;
+window.firebaseDatabase = null;
+</script>
 
 <!-- Custom JavaScript -->
 <script src="reports.js"></script>

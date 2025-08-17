@@ -1,3 +1,10 @@
+/**
+ * Real-Time Wildfire Map - Core Application
+ * Copyright (c) 2025 Matthew Menchinton
+ * Licensed under the Apache License, Version 2.0
+ * https://wildfiremap.app
+ */
+
 // Fire Map JavaScript
 // Global variables
 let map;
