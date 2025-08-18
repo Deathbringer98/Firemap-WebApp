@@ -26,11 +26,58 @@ const ALTERNATIVE_URL_2 = 'https://services1.arcgis.com/4yjifSiIG17X0gW4/arcgis/
 
 // Initialize map
 function initializeMap() {
-    map = L.map('map').setView([20, 0], 2);
+    map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
+    
+    // Add zoom safety guards to prevent canvas errors
+    let drawing = true;
+    
+    map.on('zoomstart', () => { 
+        drawing = false; 
+    });
+    
+    map.on('zoomend', () => { 
+        drawing = true; 
+        redrawLayers();
+    });
+    
+    map.on('moveend', debounce(fetchAndRender, 250));
+}
+
+// Debounce function for performance
+const debounce = (fn, ms = 250) => { 
+    let t; 
+    return (...a) => {
+        clearTimeout(t); 
+        t = setTimeout(() => fn(...a), ms);
+    };
+};
+
+// Safe radius calculation
+function safeRadius(r) {
+    return Number.isFinite(r) && r > 0 ? Math.max(r, 0.1) : 100;
+}
+
+// Redraw layers safely
+function redrawLayers() {
+    if (fireLayer) {
+        fireLayer.eachLayer(function(layer) {
+            if (layer.setRadius) {
+                const currentRadius = layer.getRadius();
+                layer.setRadius(safeRadius(currentRadius));
+            }
+        });
+    }
+}
+
+// Fetch and render function for debounced updates
+function fetchAndRender() {
+    if (map) {
+        loadFireData();
+    }
 }
 
 // Load fire data from multiple sources
@@ -130,7 +177,8 @@ function createFireVisualization(data, source) {
     fireLayer = L.geoJSON(data, {
         pointToLayer: function (feature, latlng) {
             const brightness = feature.properties.brightness || feature.properties.BRIGHTNESS || 300;
-            const radius = Math.max(brightness / 50, 100);
+            const baseRadius = Math.max(brightness / 50, 100);
+            const radius = safeRadius(baseRadius);
             
             return L.circle(latlng, {
                 radius: radius,
@@ -159,6 +207,18 @@ function createFireVisualization(data, source) {
             layer.bindPopup(info);
         }
     }).addTo(map);
+}
+
+// Safe layer reinitialization function
+function reinitLayers() {
+    if (fireLayer) {
+        fireLayer.remove();
+        fireLayer = null;
+    }
+    if (heatLayer) {
+        heatLayer.remove();
+        heatLayer = null;
+    }
 }
 
 // Utility functions for fire data
