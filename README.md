@@ -1,4 +1,5 @@
 # 🔥 Firemap WebApp
+(NOTICE) Project has been discontinued.
 
 A professional real-time wildfire tracking web application that displays active fire data on an interactive map with database persistence and user reporting capabilities.
 
